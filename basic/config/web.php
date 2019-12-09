@@ -11,10 +11,21 @@ $config = [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
     ],
+    'container' => [
+        'definitions' => [
+            app\modules\parseKgdGovKz\interfaces\ResolveCaptchaInterface::class => app\modules\parseKgdGovKz\models\ResolveCaptcha::class,
+            app\modules\parseKgdGovKz\interfaces\UidInterface::class => app\modules\parseKgdGovKz\models\UidManipulations::class,
+            app\modules\parseKgdGovKz\interfaces\DataBehindCaptchaInterface::class => app\modules\parseKgdGovKz\models\DataBehindCaptcha::class,
+            app\modules\parseKgdGovKz\interfaces\AntiCaptchaTaskProtocolInterface::class => function () {
+                return new app\modules\parseKgdGovKz\models\CaptchaImageToText();
+            },
+            app\modules\parseKgdGovKz\interfaces\DbOperationsInterface::class => app\modules\parseKgdGovKz\models\DbOperations::class,
+        ],
+    ],
     'components' => [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
-            'cookieValidationKey' => 'n1OQn-XarQv4AYCcDLpxZ8Z5KVEVuQiP',
+            'cookieValidationKey' => 'j0zsyDpveGUsr42tIR9CiuL0jOVua4L1',
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -52,7 +63,16 @@ $config = [
         ],
         */
     ],
-    'params' => $params,
+    'modules' => [
+        'parseKgdGovKz' => [
+            'class' => 'app\modules\parseKgdGovKz\Module',
+            'searchUrl' => 'http://kgd.gov.kz/apps/services/culs-taxarrear-search-web/rest/search',
+            'getCaptchaUrl' => 'http://kgd.gov.kz/apps/services/CaptchaWeb/generate',
+            'apiKey' => '',
+        ],
+    ],
+    'defaultRoute' => 'parseKgdGovKz',
+    'params' => $params,  
 ];
 
 if (YII_ENV_DEV) {
@@ -61,14 +81,14 @@ if (YII_ENV_DEV) {
     $config['modules']['debug'] = [
         'class' => 'yii\debug\Module',
         // uncomment the following to add your IP if you are not connecting from localhost.
-        //'allowedIPs' => ['127.0.0.1', '::1'],
+        'allowedIPs' => ['127.0.0.1', '10.17.2.156'],
     ];
 
     $config['bootstrap'][] = 'gii';
     $config['modules']['gii'] = [
         'class' => 'yii\gii\Module',
         // uncomment the following to add your IP if you are not connecting from localhost.
-        //'allowedIPs' => ['127.0.0.1', '::1'],
+        'allowedIPs' => ['127.0.0.1', '10.17.2.156'],
     ];
 }
 
