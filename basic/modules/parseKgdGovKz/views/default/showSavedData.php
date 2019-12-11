@@ -1,21 +1,30 @@
 <?php
 
 use yii\grid\GridView;
+use yii\helpers\Html;
 use yii\data\ActiveDataProvider;
 ?>
-<?php
 
-echo GridView::widget([
+<?=
+
+GridView::widget([
     'dataProvider' => $dataProvider,
+    'filterModel' => $searchModel,
     'columns' => [
         ['class' => 'yii\grid\SerialColumn'],
         [
+            'label' => 'ИИН/БИН',
             'attribute' => 'iinBin',
-            'label' => 'ИИН/БИН'
+            //'format' => 'text'
+            'format' => 'raw',
+            'value' => function ($data) {
+                return Html::a($data->iinBin, ['detail-view', 'id' => $data->id]);
+            },
         ],
         [
+            'label' => 'Наименование налогоплательщика',
             'attribute' => 'commonInfo.nameRu',
-            'label' => 'Ф.И.О'
+            'format' => 'text'
         ],
     ],
 ]);

@@ -14,6 +14,7 @@ use app\modules\parseKgdGovKz\models\CaptchaImageToText;
 use yii\helpers\Json;
 use yii\data\ActiveDataProvider;
 use app\modules\parseKgdGovKz\models\Identificator;
+use app\modules\parseKgdGovKz\models\IdentificatorSearch;
 
 /**
  * Default controller for the `parseKgdGovKz` module
@@ -65,6 +66,10 @@ class DefaultController extends Controller
             $captchaText = $this->resolveCaptcha->getTextOfCaptchaFromImage($captchaImg, $this->module->apiKey);
             unlink($captchaImg);
             $resultJson = $this->DataBehindCaptcha->getData($uuid, $modelBinIinForm->biniin, $captchaText, $this->module->searchUrl);
+
+            // Используется для локальной отладки, при этом надо закомментировать процесс получения данных из сети Интернет
+            //$resultJson = file_get_contents(\Yii::$app->runtimePath . '/response.json');
+
             try {
                 $resultArray = Json::decode($resultJson, true);
                 \Yii::$app->cache->set($modelBinIinForm->biniin, $resultJson);
@@ -82,24 +87,46 @@ class DefaultController extends Controller
         );
     }
 
+    /**
+     * Формирует страницу вывода сохранённых в базе данных
+     * 
+     * @return string
+     */
     public function actionShowSavedData() {
-        $query = Identificator::find()
-                ->with('commonInfo.taxOrgInfo.taxPayerInfo.bccArrearsInfo');
+        $searchModel = new IdentificatorSearch();
+        $dataProvider = $searchModel->search(\Yii::$app->request->queryParams);
 
-        $dataProvider = new ActiveDataProvider([
-            'query' => $query,
-            'pagination' => [
-                'pageSize' => 10,
-            ],
-            'sort' => [
-                'defaultOrder' => [
-                ]
-            ],
+        return $this->render('showSavedData', [
+                    'searchModel' => $searchModel,
+                    'dataProvider' => $dataProvider,
         ]);
+    }
 
-        $data = $dataProvider->getModels();
+    /**
+     * Displays a single Identificator model.
+     * @param integer $id
+     * @return mixed
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionDetailView($id) {
+        return $this->render('view', [
+                    'model' => $this->findModel((int) $id),
+        ]);
+    }
 
-        return $this->render('showSavedData', ['dataProvider' => $dataProvider, 'data' => $data]);
+    /**
+     * Finds the Identificator model based on its primary key value.
+     * If the model is not found, a 404 HTTP exception will be thrown.
+     * @param integer $id
+     * @return Identificator the loaded model
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    protected function findModel($id) {
+        if (($model = Identificator::find()->where(['id' => $id])->with('commonInfo.taxOrgInfo.taxPayerInfo.bccArrearsInfo')->one()) !== null) {
+            return $model;
+        }
+
+        throw new NotFoundHttpException('The requested page does not exist.');
     }
 
 }

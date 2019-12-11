@@ -20,81 +20,63 @@ use yii\helpers\Json;
 class DbOperations implements DbOperationsInterface
 {
 
+    public function getSavedData() {
+        return $identificators = Identificator::find()
+                ->with('commonInfo.taxOrgInfo.taxPayerInfo.bccArrearsInfo')
+                ->all();
+    }
+
     public function saveTaxArrearDataFromSite($taxArrearJsonData) {
         $taxArrearData = Json::decode($taxArrearJsonData);
-        $bccArrearsInfoId = $this->SaveToBccArrearsInfoTable($taxArrearData['taxOrgInfo'][0]['taxPayerInfo'][0]['bccArrearsInfo'][0]);
-        $taxPayerInfoId = $this->SaveToTaxPayerInfoTable($taxArrearData['taxOrgInfo'][0]['taxPayerInfo'][0], $bccArrearsInfoId);
-        $taxOrgInfoId = $this->SaveToTaxOrgInfoTable($taxArrearData['taxOrgInfo'][0], $taxPayerInfoId);
-        $commonInfoId = $this->SaveToCommonInfoTable($taxArrearData, $taxOrgInfoId);
-        $this->SaveToIdentificatorTable($taxArrearData['iinBin'], $commonInfoId);
-    }
+        $transaction = \Yii::$app->db->beginTransaction();
+        try {
+            if (!empty($taxArrearData['taxOrgInfo'][0]['taxPayerInfo'][0]['bccArrearsInfo'][0])) {
+                $bccArrearsInfoAR = new BccArrearsInfo();
+                $bccArrearsInfoAR->attributes = $taxArrearData['taxOrgInfo'][0]['taxPayerInfo'][0]['bccArrearsInfo'][0];
+                if (!$bccArrearsInfoAR->save()) {
+                    throw new \Exception('Can\'t be saved bccArrearsInfoAR model. Errors: ' . join(', ', $bccArrearsInfoAR->getFirstErrors()));
+                }
+            }
 
-    private function SaveToIdentificatorTable($iinBin, $commonInfoId) {
-        $identificatorAR = new identificator();
-        $identificatorAR->iinBin = $iinBin;
-        $identificatorAR->common_info_id = $commonInfoId;
-        $identificatorAR->save();
-    }
+            if (!empty($taxArrearData['taxOrgInfo'][0]['taxPayerInfo'][0])) {
+                $taxPayerInfoAR = new TaxPayerInfo();
+                $taxPayerInfoAR->attributes = $taxArrearData['taxOrgInfo'][0]['taxPayerInfo'][0];
+                if (!$taxPayerInfoAR->save()) {
+                    throw new \Exception('Can\'t be saved taxPayerInfoAR model. Errors: ' . join(', ', $taxPayerInfoAR->getFirstErrors()));
+                }
+            }
 
-    private function SaveToCommonInfoTable($taxArrearData, $taxOrgInfoId) {
-        $commonInfoAR = new CommonInfo();
-        $commonInfoAR->nameRu = $taxArrearData['nameRu'];
-        $commonInfoAR->nameKk = $taxArrearData['nameKk'];
-        $commonInfoAR->totalArrear = $taxArrearData['totalArrear'];
-        $commonInfoAR->pensionContributionArrear = $taxArrearData['pensionContributionArrear'];
-        $commonInfoAR->socialContributionArrear = $taxArrearData['socialContributionArrear'];
-        $commonInfoAR->socialHealthInsuranceArrear = $taxArrearData['socialHealthInsuranceArrear'];
-        $commonInfoAR->appealledAmount = $taxArrearData['appealledAmount'];
-        $commonInfoAR->modifiedTermsAmount = $taxArrearData['modifiedTermsAmount'];
-        $commonInfoAR->rehabilitaionProcedureAmount = $taxArrearData['rehabilitaionProcedureAmount'];
-        $commonInfoAR->sendTime = $taxArrearData['sendTime'];
-        $commonInfoAR->tax_org_info_id = $taxOrgInfoId;
-        $commonInfoAR->save();
-        return $commonInfoAR->id;
-    }
+            $taxOrgInfoAR = new TaxOrgInfo();
+            $taxOrgInfoAR->attributes = $taxArrearData['taxOrgInfo'][0];
+            if (!$taxOrgInfoAR->save()) {
+                throw new \Exception('Can\'t be saved taxOrgInfoAR model. Errors: ' . join(', ', $taxOrgInfoAR->getFirstErrors()));
+            }
 
-    private function SaveToTaxOrgInfoTable($taxOrgInfo, $taxPayerInfoId) {
-        $taxOrgInfoAR = new TaxOrgInfo();
-        $taxOrgInfoAR->nameRu = $taxOrgInfo['nameRu'];
-        $taxOrgInfoAR->nameKk = $taxOrgInfo['nameKk'];
-        $taxOrgInfoAR->charCode = $taxOrgInfo['charCode'];
-        $taxOrgInfoAR->reportAcrualDate = $taxOrgInfo['reportAcrualDate'];
-        $taxOrgInfoAR->totalArrear = $taxOrgInfo['totalArrear'];
-        $taxOrgInfoAR->totalTaxArrear = $taxOrgInfo['totalTaxArrear'];
-        $taxOrgInfoAR->pensionContributionArrear = $taxOrgInfo['pensionContributionArrear'];
-        $taxOrgInfoAR->socialContributionArrear = $taxOrgInfo['socialContributionArrear'];
-        $taxOrgInfoAR->socialHealthInsuranceArrear = $taxOrgInfo['socialHealthInsuranceArrear'];
-        $taxOrgInfoAR->appealledAmount = $taxOrgInfo['appealledAmount'];
-        $taxOrgInfoAR->modifiedTermsAmount = $taxOrgInfo['modifiedTermsAmount'];
-        $taxOrgInfoAR->rehabilitaionProcedureAmount = $taxOrgInfo['rehabilitaionProcedureAmount'];
-        $taxOrgInfoAR->tax_payer_info_id = $taxPayerInfoId;
-        $taxOrgInfoAR->save();
-        return $taxOrgInfoAR->id;
-    }
+            $commonInfoAR = new CommonInfo();
+            $commonInfoAR->attributes = $taxArrearData;
+            if (!$commonInfoAR->save()) {
+                throw new \Exception('Can\'t be saved commonInfoAR model. Errors: ' . join(', ', $commonInfoAR->getFirstErrors()));
+            }
 
-    private function SaveToTaxPayerInfoTable($taxPayerInfo, $bccArrearsInfoId) {
-        $taxPayerInfoAR = new TaxPayerInfo();
-        $taxPayerInfoAR->nameRu = $taxPayerInfo['nameRu'];
-        $taxPayerInfoAR->nameKk = $taxPayerInfo['nameKk'];
-        $taxPayerInfoAR->iinBin = $taxPayerInfo['iinBin'];
-        $taxPayerInfoAR->totalArrear = $taxPayerInfo['totalArrear'];
-        $taxPayerInfoAR->bcc_arrears_info_id = $bccArrearsInfoId;
-        $taxPayerInfoAR->save();
-        return $taxPayerInfoAR->id;
-    }
+            $identificatorAR = new identificator();
+            $identificatorAR->attributes = $taxArrearData;
+            if (!$identificatorAR->save()) {
+                throw new \Exception('Can\'t be saved identificatorAR model. Errors: ' . join(', ', $identificatorAR->getFirstErrors()));
+            }
 
-    private function SaveToBccArrearsInfoTable(array $bccArrearsInfo) {
-        $bccArrearsInfoAR = new BccArrearsInfo();
-        $bccArrearsInfoAR->bcc = $bccArrearsInfo['bcc'];
-        $bccArrearsInfoAR->bccNameRu = $bccArrearsInfo['bccNameRu'];
-        $bccArrearsInfoAR->bccNameKz = $bccArrearsInfo['bccNameKz'];
-        $bccArrearsInfoAR->taxArrear = $bccArrearsInfo['taxArrear'];
-        $bccArrearsInfoAR->poenaArrear = $bccArrearsInfo['poenaArrear'];
-        $bccArrearsInfoAR->percentArrear = $bccArrearsInfo['percentArrear'];
-        $bccArrearsInfoAR->fineArrear = $bccArrearsInfo['fineArrear'];
-        $bccArrearsInfoAR->totalArrear = $bccArrearsInfo['totalArrear'];
-        $bccArrearsInfoAR->save();
-        return $bccArrearsInfoAR->id;
+            $taxPayerInfoAR->bcc_arrears_info_id = $bccArrearsInfoAR->id;
+            $taxPayerInfoAR->save();
+            $taxOrgInfoAR->tax_payer_info_id = $taxPayerInfoAR->id;
+            $taxOrgInfoAR->save();
+            $commonInfoAR->tax_org_info_id = $taxOrgInfoAR->id;
+            $commonInfoAR->save();
+            $identificatorAR->common_info_id = $commonInfoAR->id;
+            $identificatorAR->save();
+
+            $transaction->commit();
+        } catch (Exception $ex) {
+            $transaction->rollBack();
+        }
     }
 
 }
